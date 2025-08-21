@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read  # for actions/checkout to fetch code
 
+env:
+  DEBIAN_FRONTEND: noninteractive
+
 jobs:
   build:
     runs-on: ubuntu-latest
