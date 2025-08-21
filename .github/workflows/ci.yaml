@@ -25,7 +25,7 @@ jobs:
       - name: Install C build tools
         run: |
           apt update
-          apt install -y build-essential cmake
+          apt install -y cmake
       - name: Build project
         run: |
           chmod +x ./build.sh
