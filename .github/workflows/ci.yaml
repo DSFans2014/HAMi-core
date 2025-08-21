@@ -1,0 +1,27 @@
+name: CI Workflow
+on:
+  # Run this workflow every time a new commit pushed to upstream/fork repository.
+  # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
+  pull_request:
+  push:
+    # Exclude branches created by Dependabot to avoid triggering current workflow
+    # for PRs initiated by Dependabot.
+    branches-ignore:
+      - 'dependabot/**'
+permissions:
+  contents: read  # for actions/checkout to fetch code
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install C build tools
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential cmake
+      - name: Build project
+        run: |
+          chmod +x ./build.sh
+          ./build.sh
