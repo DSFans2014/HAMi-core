@@ -3,11 +3,11 @@ on:
   # Run this workflow every time a new commit pushed to upstream/fork repository.
   # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
   pull_request:
-  push:
-    # Exclude branches created by Dependabot to avoid triggering current workflow
-    # for PRs initiated by Dependabot.
     branches-ignore:
       - 'dependabot/**'
+  push:
+    branches:
+      - main
 permissions:
   contents: read  # for actions/checkout to fetch code
 
