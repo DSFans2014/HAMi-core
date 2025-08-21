@@ -14,8 +14,6 @@ int main() {
 
     CUdevice device;
     CHECK_DRV_API(cuDeviceGet(&device, 0));
-    size_t a = 1
-    size_t b = 2;
 
     CUcontext ctx;
     CHECK_DRV_API(cuCtxCreate(&ctx, 0, device));
