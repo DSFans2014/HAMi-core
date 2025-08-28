@@ -175,23 +175,33 @@ nvmlReturn_t set_task_pid() {
 }
 
 int parse_cuda_visible_env() {
-    int i,count,tmp;
+    int count = 0;
     char *s = getenv("CUDA_VISIBLE_DEVICES");
-    count = 0;
-    for (i=0; i<16; i++) {
+    for (int i = 0; i < 16; i++) {
         cuda_to_nvml_map_array[i] = i;
     }   
 
     if (need_cuda_virtualize()) {
-        for (i=0; i<strlen(s); i++){
-            if ((s[i] == ',') || (i == 0)){
-                tmp = (i==0) ? atoi(s) : atoi(s + i +1);
+        for (int i = 0; i < strlen(s); i++){
+            if ((s[i] == ',') || (i == 0)) {
+                char *endptr = NULL;
+                long tmp = (i == 0) ? strtol(s, &endptr, 10) : atoi(s + i + 1, &endptr, 10);
+                if (errno == ERANGE) {
+                    LOG_WARN("CUDA_VISIBLE_DEVICES number overflow. %s", s);
+                    break;
+                } else if (endptr == s) {
+                    LOG_WARN("CUDA_VISIBLE_DEVICES parse error. %s", s);
+                    break;
+                } else if (tmp < 0 || tmp > 15) {
+                    LOG_WARN("CUDA_VISIBLE_DEVICES number invalid %d", tmp);
+                    break;
+                }
                 cuda_to_nvml_map_array[count] = tmp; 
                 count++;
             }
         } 
     }
-    for (i=0;i<16;i++){
+    for (int i = 0; i < 16; i++) {
         LOG_INFO("device %d -> %d",i,cuda_to_nvml_map(i));
     }
     LOG_DEBUG("get default cuda from %s",getenv("CUDA_VISIBLE_DEVICES"));
