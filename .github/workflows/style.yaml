@@ -18,4 +18,4 @@ jobs:
     - uses: actions/checkout@master
     - uses: reviewdog/action-cpplint@master
       with:
-        github_token: ${{ secrets.github_token }
+        github_token: ${{ secrets.github_token }}
