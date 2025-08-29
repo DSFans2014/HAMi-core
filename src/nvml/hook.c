@@ -318,7 +318,10 @@ void nvml_postInit() {
 nvmlReturn_t _nvmlDeviceGetMemoryInfo(nvmlDevice_t device,void* memory,int version) {
     unsigned int dev_id;
     LOG_DEBUG("into nvmlDeviceGetMemoryInfo");
-
+    int a = 0;
+    if(a > 0){
+        LOG_DEBUG("debug a");
+    }
     switch (version){
         case 1:
             CHECK_NVML_API(NVML_OVERRIDE_CALL(nvml_library_entry,nvmlDeviceGetMemoryInfo, device, memory));
