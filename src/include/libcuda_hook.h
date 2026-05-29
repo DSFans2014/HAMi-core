@@ -1,23 +1,24 @@
 #ifndef __LIBCUDA_HOOK_H__
 #define __LIBCUDA_HOOK_H__
 
+#include <dlfcn.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <dlfcn.h>
 #define NVML_NO_UNVERSIONED_FUNC_DEFS
 #include <cuda.h>
 #include <pthread.h>
+
 #include "include/log_utils.h"
 
 typedef struct {
-  void *fn_ptr;
-  char *name;
+    void *fn_ptr;
+    char *name;
 } cuda_entry_t;
 
 #define FILENAME_MAX 4096
@@ -30,15 +31,15 @@ typedef CUresult (*cuda_sym_t)();
 
 #define CUDA_FIND_ENTRY(table, sym) ({ (table)[CUDA_OVERRIDE_ENUM(sym)].fn_ptr; })
 
-#define CUDA_OVERRIDE_CALL(table, sym, ...)                                    \
-  ({    \
-    LOG_DEBUG("Hijacking %s", #sym);                                           \
-    cuda_sym_t _entry = (cuda_sym_t)CUDA_FIND_ENTRY(table, sym);               \
-    if (_entry == NULL) {                                                      \
-      LOG_ERROR("Hijack failed: %s is NULL", #sym);                            \
-    }                                                                          \
-    _entry(__VA_ARGS__);                                                       \
-  })
+#define CUDA_OVERRIDE_CALL(table, sym, ...)                          \
+    ({                                                               \
+        LOG_DEBUG("Hijacking %s", #sym);                             \
+        cuda_sym_t _entry = (cuda_sym_t)CUDA_FIND_ENTRY(table, sym); \
+        if (_entry == NULL) {                                        \
+            LOG_ERROR("Hijack failed: %s is NULL", #sym);            \
+        }                                                            \
+        _entry(__VA_ARGS__);                                         \
+    })
 
 typedef enum {
     /* cuInit Part */
@@ -87,7 +88,7 @@ typedef enum {
     CUDA_OVERRIDE_ENUM(cuCtxSetLimit),
     CUDA_OVERRIDE_ENUM(cuCtxSetSharedMemConfig),
     CUDA_OVERRIDE_ENUM(cuCtxSynchronize),
-    //CUDA_OVERRIDE_ENUM(cuCtxEnablePeerAccess),
+    // CUDA_OVERRIDE_ENUM(cuCtxEnablePeerAccess),
     CUDA_OVERRIDE_ENUM(cuGetExportTable),
 
     /* cuStream Part */
@@ -268,14 +269,14 @@ typedef enum {
     CUDA_OVERRIDE_ENUM(cuGetProcAddress),
     CUDA_OVERRIDE_ENUM(cuGetProcAddress_v2),
     CUDA_ENTRY_END
-}cuda_override_enum_t;
+} cuda_override_enum_t;
 
 extern cuda_entry_t cuda_library_entry[];
 
 #endif
 
 #undef cuGetProcAddress
-CUresult cuGetProcAddress( const char* symbol, void** pfn, int  cudaVersion, cuuint64_t flags );
+CUresult cuGetProcAddress(const char *symbol, void **pfn, int cudaVersion, cuuint64_t flags);
 #undef cuGraphInstantiate
-CUresult cuGraphInstantiate(CUgraphExec *phGraphExec, CUgraph hGraph, CUgraphNode *phErrorNode, char *logBuffer, size_t bufferSize);
-
+CUresult cuGraphInstantiate(CUgraphExec *phGraphExec, CUgraph hGraph, CUgraphNode *phErrorNode,
+                            char *logBuffer, size_t bufferSize);

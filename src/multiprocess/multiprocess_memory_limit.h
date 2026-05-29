@@ -1,31 +1,30 @@
 #ifndef __MULTIPROCESS_MEMORY_LIMIT_H__
 #define __MULTIPROCESS_MEMORY_LIMIT_H__
 
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdlib.h>
+#include <ctype.h>
+#include <cuda.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <semaphore.h>
-#include <unistd.h>
-#include <time.h>
-#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <cuda.h>
-#include <pthread.h>
-#include <stdatomic.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
-#include "static_config.h"
 #include "include/log_utils.h"
+#include "static_config.h"
 
-
-#define MULTIPROCESS_SHARED_REGION_MAGIC_FLAG  19920718
-#define MULTIPROCESS_SHARED_REGION_CACHE_ENV   "CUDA_DEVICE_MEMORY_SHARED_CACHE"
-#define MULTIPROCESS_SHARED_REGION_CACHE_DEFAULT  "/tmp/cudevshr.cache"
+#define MULTIPROCESS_SHARED_REGION_MAGIC_FLAG 19920718
+#define MULTIPROCESS_SHARED_REGION_CACHE_ENV "CUDA_DEVICE_MEMORY_SHARED_CACHE"
+#define MULTIPROCESS_SHARED_REGION_CACHE_DEFAULT "/tmp/cudevshr.cache"
 #define ENV_OVERRIDE_FILE "/overrideEnv"
 #define CUDA_TASK_PRIORITY_ENV "CUDA_TASK_PRIORITY"
 
@@ -34,7 +33,7 @@
 #define CUDA_DEVICE_MEMORY_UPDATE_FAILURE 1
 #define MEMORY_LIMIT_TOLERATION_RATE 1.1
 
-#define SHARED_REGION_SIZE_MAGIC  sizeof(shared_region_t)
+#define SHARED_REGION_SIZE_MAGIC sizeof(shared_region_t)
 #define SHARED_REGION_MAX_PROCESS_NUM 1024
 
 // macros for debugging
@@ -51,7 +50,7 @@
 #define SEQ_AFTER_DEC 9
 
 #ifndef SEQ_POINT_MARK
-    #define SEQ_POINT_MARK(s)
+#define SEQ_POINT_MARK(s)
 #endif
 
 #define FACTOR 32
@@ -76,13 +75,13 @@ typedef struct {
 } device_util_t;
 
 typedef struct {
-    _Atomic int32_t pid;           // Atomic to detect slot allocation
+    _Atomic int32_t pid;  // Atomic to detect slot allocation
     _Atomic int32_t hostpid;
     device_memory_t used[CUDA_DEVICE_MAX_COUNT];
     _Atomic uint64_t monitorused[CUDA_DEVICE_MAX_COUNT];
     device_util_t device_util[CUDA_DEVICE_MAX_COUNT];
     _Atomic int32_t status;
-    _Atomic uint64_t seqlock;      // Sequence lock for consistent snapshots
+    _Atomic uint64_t seqlock;  // Sequence lock for consistent snapshots
     uint64_t unused[2];
 } shrreg_proc_slot_t;
 
@@ -112,24 +111,23 @@ typedef struct {
     int32_t pid;
     int fd;
     pthread_once_t init_status;
-    shared_region_t* shared_region;
-    uint64_t last_kernel_time; // cache for current process
-    shrreg_proc_slot_t* my_slot;  // Cached pointer to this process's slot (lock-free access)
+    shared_region_t *shared_region;
+    uint64_t last_kernel_time;    // cache for current process
+    shrreg_proc_slot_t *my_slot;  // Cached pointer to this process's slot (lock-free access)
 } shared_region_info_t;
 
-
 typedef struct {
-  size_t tid;
-  CUcontext ctx;
+    size_t tid;
+    CUcontext ctx;
 } thread_context_map;
 
 void ensure_initialized();
 
 int get_current_device_sm_limit(int dev);
 uint64_t get_current_device_memory_limit(const int dev);
-int set_current_device_memory_limit(const int dev,size_t newlimit);
-int set_current_device_sm_limit(int dev,int scale);
-int set_current_device_sm_limit_scale(int dev,int scale);
+int set_current_device_memory_limit(const int dev, size_t newlimit);
+int set_current_device_sm_limit(int dev, int scale);
+int set_current_device_sm_limit_scale(int dev, int scale);
 int update_host_pid();
 int set_host_pid(int hostpid);
 
@@ -144,11 +142,11 @@ int get_recent_kernel();
 int get_utilization_switch();
 int set_env_utilization_switch();
 
-int set_gpu_device_memory_monitor(int32_t pid,int dev,size_t monitor);
-int set_gpu_device_sm_utilization(int32_t pid,int dev, unsigned int smUtil);
+int set_gpu_device_memory_monitor(int32_t pid, int dev, size_t monitor);
+int set_gpu_device_sm_utilization(int32_t pid, int dev, unsigned int smUtil);
 int init_gpu_device_utilization();
-int add_gpu_device_memory_usage(int32_t pid,int dev,size_t usage,int type);
-int rm_gpu_device_memory_usage(int32_t pid,int dev,size_t usage,int type);
+int add_gpu_device_memory_usage(int32_t pid, int dev, size_t usage, int type);
+int rm_gpu_device_memory_usage(int32_t pid, int dev, size_t usage, int type);
 
 shrreg_proc_slot_t *find_proc_by_hostpid(int hostpid);
 int active_oom_killer();
@@ -158,10 +156,10 @@ int shrreg_major_version();
 int shrreg_minor_version();
 int init_device_info();
 
-//void inc_current_device_memory_usage(const int dev, const uint64_t usage);
-//void decl_current_device_memory_usage(const int dev, const uint64_t usage);
+// void inc_current_device_memory_usage(const int dev, const uint64_t usage);
+// void decl_current_device_memory_usage(const int dev, const uint64_t usage);
 
-//int oom_check(const int dev,int addon);
+// int oom_check(const int dev,int addon);
 
 void lock_shrreg();
 void unlock_shrreg();
@@ -169,9 +167,9 @@ void unlock_shrreg();
 int lock_postinit();  // Returns 1 on success, 0 on timeout
 void unlock_postinit();
 
-//Setspec of the corresponding device
+// Setspec of the corresponding device
 int setspec();
-//Remove quit process
+// Remove quit process
 
 void suspend_all();
 void resume_all();
@@ -180,7 +178,7 @@ int wait_status_all(int status);
 void print_all();
 
 int load_env_from_file(char *filename);
-int comparelwr(const char *s1,char *s2);
+int comparelwr(const char *s1, char *s2);
 int put_device_info();
 unsigned int nvml_to_cuda_map(unsigned int nvmldev);
 unsigned int cuda_to_nvml_map(unsigned int cudadev);
