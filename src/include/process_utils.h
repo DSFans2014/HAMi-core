@@ -1,10 +1,10 @@
 #ifndef __UTILS_PROCESS_UTILS_H__
-#define __UTILS_PROCESS_UTILS_H__ 
+#define __UTILS_PROCESS_UTILS_H__
 
-#include <stdio.h>
 #include <dirent.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define BUFFER_LENGTH 8192  // ensure larger than linux max filename length
 #define FILENAME_LENGTH 8192
@@ -13,13 +13,12 @@
 #define PROC_STATE_NONALIVE 1
 #define PROC_STATE_UNKNOWN 2
 
-
 int proc_alive(int32_t pid) {
     char filename[FILENAME_LENGTH] = {0};
     sprintf(filename, "/proc/%d/stat", pid);
 
     FILE* fp;
-    if ((fp = fopen(filename, "r")) == NULL) {   
+    if ((fp = fopen(filename, "r")) == NULL) {
         return PROC_STATE_NONALIVE;
     }
 
@@ -38,6 +37,5 @@ int proc_alive(int32_t pid) {
     fclose(fp);
     return res;
 }
-
 
 #endif  // __UTILS_PROCESS_UTILS_H__

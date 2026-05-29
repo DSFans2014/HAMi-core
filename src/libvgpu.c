@@ -1,21 +1,22 @@
-//#include "memory_limit.h"
-#include <fcntl.h>
-#include <dlfcn.h>
-#include <pthread.h>
-#include "include/nvml_prefix.h"
-#include <nvml.h>
-#include "include/nvml_prefix.h"
-#include "include/log_utils.h"
-#include "include/libcuda_hook.h"
+// #include "memory_limit.h"
 #include "include/libvgpu.h"
-#include "include/utils.h"
-#include "include/nvml_override.h"
+
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <nvml.h>
+#include <pthread.h>
+
 #include "allocator/allocator.h"
+#include "include/libcuda_hook.h"
+#include "include/log_utils.h"
+#include "include/nvml_override.h"
+#include "include/nvml_prefix.h"
+#include "include/utils.h"
 #include "multiprocess/multiprocess_memory_limit.h"
 
 extern void init_utilization_watcher(void);
 extern void utilization_watcher(void);
-extern void initial_virtual_map(void); 
+extern void initial_virtual_map(void);
 extern int set_host_pid(int hostpid);
 extern void allocator_init(void);
 void preInit();
@@ -26,8 +27,8 @@ pthread_once_t pre_cuinit_flag = PTHREAD_ONCE_INIT;
 pthread_once_t post_cuinit_flag = PTHREAD_ONCE_INIT;
 pthread_once_t dlsym_init_flag = PTHREAD_ONCE_INIT;
 
-/* pidfound is to enable core utilization, if we don't find hostpid in container, then we have no
- where to find its core utilization */
+/* pidfound is to enable core utilization, if we don't find hostpid in
+ container, then we have no where to find its core utilization */
 extern int pidfound;
 
 /* used to switch on/off the core utilization limitation*/
@@ -43,25 +44,24 @@ pthread_mutex_t dlsym_lock;
 typedef struct {
     pthread_t tid;
     void *pointer;
-}tid_dl_map;
+} tid_dl_map;
 
 #define DLMAP_SIZE 100
 tid_dl_map dlmap[DLMAP_SIZE];
-int dlmap_count=0;
+int dlmap_count = 0;
 
-void init_dlsym(){
+void init_dlsym() {
     LOG_DEBUG("init_dlsym\n");
-    pthread_mutex_init(&dlsym_lock,NULL);
-    dlmap_count=0;
-    memset(dlmap, 0, sizeof(tid_dl_map)*DLMAP_SIZE);
+    pthread_mutex_init(&dlsym_lock, NULL);
+    dlmap_count = 0;
+    memset(dlmap, 0, sizeof(tid_dl_map) * DLMAP_SIZE);
 }
 
-int check_dlmap(pthread_t tid, void *pointer){
+int check_dlmap(pthread_t tid, void *pointer) {
     int i;
     int cursor = (dlmap_count < DLMAP_SIZE) ? dlmap_count : DLMAP_SIZE;
-    for (i=cursor-1; i>=0; i--) {
-        if ((dlmap[i].pointer == pointer) && pthread_equal(dlmap[i].tid, tid))
-            return 1;
+    for (i = cursor - 1; i >= 0; i--) {
+        if ((dlmap[i].pointer == pointer) && pthread_equal(dlmap[i].tid, tid)) return 1;
     }
     cursor = dlmap_count % DLMAP_SIZE;
     dlmap[cursor].tid = tid;
@@ -70,20 +70,14 @@ int check_dlmap(pthread_t tid, void *pointer){
     return 0;
 }
 
-FUNC_ATTR_VISIBLE void* dlsym(void* handle, const char* symbol) {
-    LOG_DEBUG("into dlsym %s",symbol);
-    pthread_once(&dlsym_init_flag,init_dlsym);
+FUNC_ATTR_VISIBLE void *dlsym(void *handle, const char *symbol) {
+    LOG_DEBUG("into dlsym %s", symbol);
+    pthread_once(&dlsym_init_flag, init_dlsym);
     if (real_dlsym == NULL) {
-        const char* glibc_versions[] = {
-                "GLIBC_2.2.5",  // for amd64
-                "GLIBC_2.17",   // for arm64
-                "GLIBC_2.3",
-                "GLIBC_2.4",
-                "GLIBC_2.10",
-                "GLIBC_2.18",
-                "GLIBC_2.22",
-                NULL
-        };
+        const char *glibc_versions[] = {"GLIBC_2.2.5",  // for amd64
+                                        "GLIBC_2.17",   // for arm64
+                                        "GLIBC_2.3",   "GLIBC_2.4",  "GLIBC_2.10",
+                                        "GLIBC_2.18",  "GLIBC_2.22", NULL};
         for (int i = 0; glibc_versions[i] != NULL; i++) {
             real_dlsym = dlvsym(RTLD_NEXT, "dlsym", glibc_versions[i]);
             if (real_dlsym != NULL) {
@@ -91,11 +85,11 @@ FUNC_ATTR_VISIBLE void* dlsym(void* handle, const char* symbol) {
                 break;
             }
         }
-        char *path_search=getenv("CUDA_REDIRECT");
-        if ((path_search!=NULL) && (strlen(path_search)>0)){
-            vgpulib = dlopen(path_search,RTLD_LAZY);
-        }else{
-            vgpulib = dlopen("/usr/local/vgpu/libvgpu.so",RTLD_LAZY);
+        char *path_search = getenv("CUDA_REDIRECT");
+        if ((path_search != NULL) && (strlen(path_search) > 0)) {
+            vgpulib = dlopen(path_search, RTLD_LAZY);
+        } else {
+            vgpulib = dlopen("/usr/local/vgpu/libvgpu.so", RTLD_LAZY);
         }
         if (real_dlsym == NULL) {
             LOG_ERROR("real dlsym not found");
@@ -103,33 +97,30 @@ FUNC_ATTR_VISIBLE void* dlsym(void* handle, const char* symbol) {
             if (libc_handle) {
                 real_dlsym = dlsym(libc_handle, "dlsym");
             }
-            if (real_dlsym == NULL)
-                LOG_ERROR("real dlsym not found after trying libc.so.6");
+            if (real_dlsym == NULL) LOG_ERROR("real dlsym not found after trying libc.so.6");
         }
     }
     if (handle == RTLD_NEXT) {
-        void *h = real_dlsym(RTLD_NEXT,symbol);
+        void *h = real_dlsym(RTLD_NEXT, symbol);
         pthread_mutex_lock(&dlsym_lock);
         pthread_t tid = pthread_self();
-        if (check_dlmap(tid,h)){
-            LOG_WARN("recursive dlsym : %s\n",symbol);
+        if (check_dlmap(tid, h)) {
+            LOG_WARN("recursive dlsym : %s\n", symbol);
             h = NULL;
         }
         pthread_mutex_unlock(&dlsym_lock);
         return h;
     }
     if (symbol[0] == 'c' && symbol[1] == 'u') {
-        //Compatible with cuda 12.8+ fix
-        if (strcmp(symbol,"cuGetExportTable")!=0)
-            pthread_once(&pre_cuinit_flag,(void(*)(void))preInit);
-        void *f = real_dlsym(vgpulib,symbol);
-        if (f!=NULL)
-            return f;
+        // Compatible with cuda 12.8+ fix
+        if (strcmp(symbol, "cuGetExportTable") != 0)
+            pthread_once(&pre_cuinit_flag, (void (*)(void))preInit);
+        void *f = real_dlsym(vgpulib, symbol);
+        if (f != NULL) return f;
     }
-    #ifdef HOOK_NVML_ENABLE
-    if (symbol[0] == 'n' && symbol[1] == 'v' &&
-          symbol[2] == 'm' && symbol[3] == 'l' ) {
-        void* f = __dlsym_hook_section_nvml(handle, symbol);
+#ifdef HOOK_NVML_ENABLE
+    if (symbol[0] == 'n' && symbol[1] == 'v' && symbol[2] == 'm' && symbol[3] == 'l') {
+        void *f = __dlsym_hook_section_nvml(handle, symbol);
         if (f != NULL) {
             return f;
         }
@@ -138,14 +129,14 @@ FUNC_ATTR_VISIBLE void* dlsym(void* handle, const char* symbol) {
     return real_dlsym(handle, symbol);
 }
 
-void* __dlsym_hook_section(void* handle, const char* symbol) {
+void *__dlsym_hook_section(void *handle, const char *symbol) {
     int it;
-    for (it=0;it<CUDA_ENTRY_END;it++){
-        if (strcmp(cuda_library_entry[it].name,symbol) == 0){
+    for (it = 0; it < CUDA_ENTRY_END; it++) {
+        if (strcmp(cuda_library_entry[it].name, symbol) == 0) {
             if (cuda_library_entry[it].fn_ptr == NULL) {
                 LOG_WARN("NEED TO RETURN NULL");
                 return NULL;
-            }else{
+            } else {
                 break;
             }
         }
@@ -153,8 +144,8 @@ void* __dlsym_hook_section(void* handle, const char* symbol) {
     DLSYM_HOOK_FUNC(cuInit);
     DLSYM_HOOK_FUNC(cuGetProcAddress);
     DLSYM_HOOK_FUNC(cuGetProcAddress_v2);
-    //Context
-    //DLSYM_HOOK_FUNC(cuCtxGetDevice);
+    // Context
+    // DLSYM_HOOK_FUNC(cuCtxGetDevice);
 #if CUDA_VERSION < 13000
     DLSYM_HOOK_FUNC(cuCtxCreate_v2);
     DLSYM_HOOK_FUNC(cuCtxCreate_v3);
@@ -183,8 +174,8 @@ void* __dlsym_hook_section(void* handle, const char* symbol) {
     DLSYM_HOOK_FUNC(cuCtxSetLimit);
     DLSYM_HOOK_FUNC(cuCtxSetSharedMemConfig);
     DLSYM_HOOK_FUNC(cuCtxSynchronize);
-    //DLSYM_HOOK_FUNC(cuCtxEnablePeerAccess);
-    //DLSYM_HOOK_FUNC(cuGetExportTable);
+    // DLSYM_HOOK_FUNC(cuCtxEnablePeerAccess);
+    // DLSYM_HOOK_FUNC(cuGetExportTable);
     DLSYM_HOOK_FUNC(cuArray3DCreate_v2);
     DLSYM_HOOK_FUNC(cuArrayCreate_v2);
     DLSYM_HOOK_FUNC(cuArrayDestroy);
@@ -315,7 +306,7 @@ void* __dlsym_hook_section(void* handle, const char* symbol) {
     DLSYM_HOOK_FUNC(cuSignalExternalSemaphoresAsync);
     DLSYM_HOOK_FUNC(cuWaitExternalSemaphoresAsync);
     DLSYM_HOOK_FUNC(cuDestroyExternalSemaphore);
-    // cuda Graph 
+    // cuda Graph
     DLSYM_HOOK_FUNC(cuGraphCreate);
     DLSYM_HOOK_FUNC(cuGraphAddKernelNode_v2);
     DLSYM_HOOK_FUNC(cuGraphKernelNodeGetParams_v2);
@@ -374,7 +365,7 @@ void* __dlsym_hook_section(void* handle, const char* symbol) {
     return NULL;
 }
 
-void* __dlsym_hook_section_nvml(void* handle, const char* symbol) {
+void *__dlsym_hook_section_nvml(void *handle, const char *symbol) {
     DLSYM_HOOK_FUNC(nvmlInit);
     /** nvmlShutdown */
     DLSYM_HOOK_FUNC(nvmlShutdown);
@@ -857,7 +848,7 @@ void* __dlsym_hook_section_nvml(void* handle, const char* symbol) {
     /** nvmlDeviceSetTemperatureThreshold */
     DLSYM_HOOK_FUNC(nvmlDeviceSetTemperatureThreshold);
     /** nvmlRetry_NvRmControl */
-    //DLSYM_HOOK_FUNC(nvmlRetry_NvRmControl);
+    // DLSYM_HOOK_FUNC(nvmlRetry_NvRmControl);
     /** nvmlVgpuInstanceGetGpuInstanceId */
     DLSYM_HOOK_FUNC(nvmlVgpuInstanceGetGpuInstanceId);
     /** nvmlVgpuTypeGetGpuInstanceProfileId */
@@ -865,11 +856,11 @@ void* __dlsym_hook_section_nvml(void* handle, const char* symbol) {
     return NULL;
 }
 
-void preInit(){
+void preInit() {
     log_utils_init();
     LOG_MSG("Initializing.....");
     if (real_dlsym == NULL) {
-        real_dlsym = dlvsym(RTLD_NEXT,"dlsym","GLIBC_2.2.5");
+        real_dlsym = dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5");
         if (real_dlsym == NULL) {
             LOG_ERROR("real dlsym not found");
             void *libc_handle = dlopen("libc.so.6", RTLD_LAZY);
@@ -882,11 +873,11 @@ void preInit(){
     }
     real_realpath = NULL;
     load_cuda_libraries();
-    //nvmlInit();
+    // nvmlInit();
     ENSURE_INITIALIZED();
 }
 
-void postInit(){
+void postInit() {
     allocator_init();
     map_cuda_visible_devices();
 
@@ -914,20 +905,20 @@ void postInit(){
         pidfound = 1;
     }
 
-    //add_gpu_device_memory_usage(getpid(),0,context_size,0);
+    // add_gpu_device_memory_usage(getpid(),0,context_size,0);
     env_utilization_switch = set_env_utilization_switch();
     init_utilization_watcher();
 }
 
-CUresult cuInit(unsigned int Flags){
+CUresult cuInit(unsigned int Flags) {
     LOG_INFO("Into cuInit");
-    pthread_once(&pre_cuinit_flag,(void(*)(void))preInit);
+    pthread_once(&pre_cuinit_flag, (void (*)(void))preInit);
     ENSURE_INITIALIZED();
-    CUresult res = CUDA_OVERRIDE_CALL(cuda_library_entry,cuInit,Flags);
-    if (res != CUDA_SUCCESS){
-        LOG_ERROR("cuInit failed:%d",res);
+    CUresult res = CUDA_OVERRIDE_CALL(cuda_library_entry, cuInit, Flags);
+    if (res != CUDA_SUCCESS) {
+        LOG_ERROR("cuInit failed:%d", res);
         return res;
     }
-    pthread_once(&post_cuinit_flag, (void(*) (void))postInit);
+    pthread_once(&post_cuinit_flag, (void (*)(void))postInit);
     return CUDA_SUCCESS;
 }
